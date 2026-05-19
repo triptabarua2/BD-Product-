@@ -9,6 +9,7 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "db:seed": "tsx scripts/seed.ts",
+    "db:seed-supabase": "tsx scripts/seed-supabase.ts",
     "cron:prices": "tsx scripts/update-prices.ts"
   },
   "dependencies": {
