@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { categories, prices, products, formatBDT } from '@/lib/data';
 
 export const metadata: Metadata = {
@@ -67,10 +68,17 @@ export default function Home() {
           <h2 className="text-2xl font-semibold mb-4">ট্রেন্ডিং প্রোডাক্ট</h2>
           <div className="grid md:grid-cols-3 gap-4">
             {trending.map((p) => (
-              <Link key={p.id} href={`/product/${p.slug}`} className="card p-4 hover:border-emerald-500 transition-colors">
-                <div className="font-semibold">{p.name}</div>
-                <div className="text-sm text-slate-500">{p.brand}</div>
-                <div className="mt-1 text-sm">⭐ {p.rating}/5</div>
+              <Link key={p.id} href={`/product/${p.slug}`} className="card p-4 hover:border-emerald-500 transition-colors flex gap-4 items-center">
+                {p.heroImage && (
+                  <div className="w-20 h-20 relative rounded-lg overflow-hidden flex-shrink-0 bg-white border">
+                    <Image src={p.heroImage} alt={p.name} fill className="object-contain p-1" />
+                  </div>
+                )}
+                <div>
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-sm text-slate-500">{p.brand}</div>
+                  <div className="mt-1 text-sm">⭐ {p.rating}/5</div>
+                </div>
               </Link>
             ))}
           </div>
@@ -83,12 +91,19 @@ export default function Home() {
             {deals.map((d) => {
               const product = products.find((p) => p.id === d.productId)!;
               return (
-                <div key={product.id + d.storeName} className="card p-4">
-                  <div className="font-semibold">{product.name} @ {d.storeName}</div>
+                <div key={product.id + d.storeName} className="card p-4 flex gap-4 items-center">
+                  {product.heroImage && (
+                    <div className="w-16 h-16 relative rounded-lg overflow-hidden flex-shrink-0 bg-white border">
+                      <Image src={product.heroImage} alt={product.name} fill className="object-contain p-1" />
+                    </div>
+                  )}
                   <div>
-                    {formatBDT(d.currentPrice)}{' '}
-                    <span className="line-through text-sm text-slate-400">{formatBDT(d.originalPrice)}</span>
-                    <span className="ml-2 text-emerald-600 font-medium">-{d.discountPercent.toFixed(0)}%</span>
+                    <div className="font-semibold">{product.name} @ {d.storeName}</div>
+                    <div>
+                      {formatBDT(d.currentPrice)}{' '}
+                      <span className="line-through text-sm text-slate-400">{formatBDT(d.originalPrice)}</span>
+                      <span className="ml-2 text-emerald-600 font-medium">-{d.discountPercent.toFixed(0)}%</span>
+                    </div>
                   </div>
                 </div>
               );

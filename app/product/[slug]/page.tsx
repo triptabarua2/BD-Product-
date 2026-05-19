@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { prices, products, formatBDT } from '@/lib/data';
 
 type Props = { params: Promise<{ slug: string }> };
@@ -74,10 +75,37 @@ export default async function ProductDetail({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
       <main className="container py-8 space-y-6">
-        <h1 className="text-3xl font-bold">{p.name}</h1>
-        <p className="text-slate-500">{p.brand} · {p.category} · ⭐ {p.rating}/5</p>
+        <div className="flex flex-col md:flex-row gap-8 items-start">
+          {p.heroImage && (
+            <div className="w-full md:w-1/3 aspect-square relative rounded-2xl overflow-hidden border bg-white shadow-sm">
+              <Image
+                src={p.heroImage}
+                alt={p.name}
+                fill
+                className="object-contain p-4"
+                priority
+              />
+            </div>
+          )}
+          <div className="flex-1 space-y-4">
+            <h1 className="text-4xl font-bold">{p.name}</h1>
+            <p className="text-xl text-slate-500 font-medium">
+              {p.brand} · {p.category} · ⭐ {p.rating}/5
+            </p>
+            <div className="flex items-center gap-4">
+              <div className="text-3xl font-bold text-emerald-600">
+                {lowest ? formatBDT(lowest.currentPrice) : 'N/A'}
+              </div>
+              {lowest && lowest.discountPercent > 0 && (
+                <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-sm font-semibold">
+                  {lowest.discountPercent.toFixed(0)}% OFF
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
 
-        <div className="grid md:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-3 gap-6">
           {/* AI Review */}
           <section className="md:col-span-2 card p-6">
             <h2 className="font-semibold text-xl">AI Review (English + বাংলা)</h2>

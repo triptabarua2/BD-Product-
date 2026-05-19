@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import Image from 'next/image';
 import { notFound } from 'next/navigation';
 import { products, prices, categories, formatBDT } from '@/lib/data';
 
@@ -41,13 +42,28 @@ export default async function CategoryPage({ params }: Props) {
       ) : (
         <div className="grid md:grid-cols-3 gap-4">
           {items.map((p) => {
-            const best = prices.filter((x) => x.productId === p.id).sort((a, b) => a.currentPrice - b.currentPrice)[0];
+            const best = prices
+              .filter((x) => x.productId === p.id)
+              .sort((a, b) => a.currentPrice - b.currentPrice)[0];
             return (
-              <Link key={p.id} href={`/product/${p.slug}`} className="card p-4 hover:border-emerald-500 transition-colors">
-                <div className="font-semibold">{p.name}</div>
-                <div className="text-sm text-slate-500">{p.brand}</div>
-                <div className="mt-1 font-medium text-emerald-600">{best ? formatBDT(best.currentPrice) : 'N/A'}</div>
-                <div className="text-sm">⭐ {p.rating}/5</div>
+              <Link
+                key={p.id}
+                href={`/product/${p.slug}`}
+                className="card p-4 hover:border-emerald-500 transition-colors space-y-3"
+              >
+                {p.heroImage && (
+                  <div className="aspect-square relative rounded-xl overflow-hidden bg-white border">
+                    <Image src={p.heroImage} alt={p.name} fill className="object-contain p-4" />
+                  </div>
+                )}
+                <div>
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-sm text-slate-500">{p.brand}</div>
+                  <div className="mt-1 font-medium text-emerald-600">
+                    {best ? formatBDT(best.currentPrice) : 'N/A'}
+                  </div>
+                  <div className="text-sm">⭐ {p.rating}/5</div>
+                </div>
               </Link>
             );
           })}
