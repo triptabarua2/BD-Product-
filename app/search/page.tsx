@@ -10,7 +10,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
 
   return (
     <main className="container py-8">
-      <h1 className="text-2xl font-bold mb-6">Search Results for "{q}"</h1>
+      <h1 className="text-2xl font-bold mb-6">Search Results for &quot;{q}&quot;</h1>
       <div className="grid gap-4">
         {list.length > 0 ? (
           list.map((p) => {

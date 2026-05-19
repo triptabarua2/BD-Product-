@@ -18,7 +18,7 @@ export function Navbar() {
         </Link>
         <nav className="flex gap-4 items-center text-sm">
           {navLinks.map((l) => (
-            <Link key={l.href} href={l.href as any} className="hover:text-emerald-600 transition-colors hidden sm:block">
+            <Link key={l.href} href={l.href} className="hover:text-emerald-600 transition-colors hidden sm:block">
               {l.label}
             </Link>
           ))}

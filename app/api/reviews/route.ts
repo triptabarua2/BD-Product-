@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Check if review already exists in Supabase
-    const { data: existingReview, error: fetchError } = await supabase
+    const { data: existingReview } = await supabase
       .from('ai_reviews')
       .select('*')
       .eq('product_id', productId)
