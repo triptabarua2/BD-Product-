@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { openai } from '@/lib/openai';
+import { groq } from '@/lib/openai';
 import { supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
@@ -23,12 +23,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ review: existingReview, source: 'database' });
     }
 
-    // 2. If not exists, generate with OpenAI
+    // 2. Generate with Groq
     const prompt = `Generate a bilingual (Bangla + English) product review for "${productName}".
 Specs: ${JSON.stringify(specs)}
 BDT price context: ${JSON.stringify(prices)}
 
-Respond in JSON format:
+Respond in JSON format only, no extra text:
 {
   "summary": "...",
   "detailed_review": "...",
@@ -37,15 +37,15 @@ Respond in JSON format:
   "overall_score": 8.5
 }`;
 
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+    const response = await groq.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
       response_format: { type: 'json_object' },
     });
 
     const aiContent = JSON.parse(response.choices[0].message.content ?? '{}');
 
-    // 3. Save the generated review to Supabase
+    // 3. Save to Supabase
     const { data: newReview, error: insertError } = await supabase
       .from('ai_reviews')
       .insert([
@@ -64,11 +64,10 @@ Respond in JSON format:
 
     if (insertError) {
       console.error('Supabase insert error:', insertError);
-      // Still return the review even if saving failed
-      return NextResponse.json({ review: aiContent, source: 'openai_only' });
+      return NextResponse.json({ review: aiContent, source: 'groq_only' });
     }
 
-    return NextResponse.json({ review: newReview, source: 'openai_generated' });
+    return NextResponse.json({ review: newReview, source: 'groq_generated' });
   } catch (err) {
     console.error('Review API error:', err);
     return NextResponse.json({ error: 'Review generation failed' }, { status: 500 });
