@@ -21,7 +21,17 @@ export async function GET(req: NextRequest) {
   }
 
   // UI-friendly format
-  const suggestions = (data ?? []).map((p: any) => ({
+  interface SearchProduct {
+    id: string;
+    slug: string;
+    name: string;
+    rating: number;
+    brands: { name: string } | null;
+    categories: { name: string } | null;
+  }
+
+  // UI-friendly format
+  const suggestions = ((data as unknown as SearchProduct[]) ?? []).map((p) => ({
     id: p.id,
     slug: p.slug,
     name: p.name,

@@ -210,8 +210,12 @@ export async function getTopDeals(limit = 4): Promise<DealRow[]> {
     return [];
   }
 
-  return (data ?? []).map((row: any) => ({
-    product: mapProduct(row.products as DbProduct),
-    price: mapPrice(row as DbPrice, row.products.id),
+  interface DealData extends DbPrice {
+    products: DbProduct;
+  }
+
+  return ((data as unknown as DealData[]) ?? []).map((row) => ({
+    product: mapProduct(row.products),
+    price: mapPrice(row, row.products.id),
   }));
 }
