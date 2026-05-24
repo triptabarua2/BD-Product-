@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
-import { categories, prices, products, formatBDT } from '@/lib/data';
+import { getAllProducts, getAllCategories, getTopDeals } from '@/lib/db';
+import { formatBDT } from '@/lib/data';
+
+// প্রতি request-এ fresh data (দাম পরিবর্তন হতে পারে)
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'BD Product – বাংলাদেশের সেরা প্রোডাক্ট রিভিউ ও দাম তুলনা',
@@ -23,9 +27,14 @@ const websiteJsonLd = {
   },
 };
 
-export default function Home() {
-  const trending = products.slice(0, 3);
-  const deals = prices.sort((a, b) => b.discountPercent - a.discountPercent).slice(0, 4);
+export default async function Home() {
+  const [allProducts, categories, deals] = await Promise.all([
+    getAllProducts(),
+    getAllCategories(),
+    getTopDeals(4),
+  ]);
+
+  const trending = allProducts.slice(0, 3);
 
   return (
     <>
@@ -48,68 +57,89 @@ export default function Home() {
         </section>
 
         {/* Categories */}
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">জনপ্রিয় ক্যাটাগরি</h2>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-            {categories.slice(0, 10).map((c) => (
-              <Link
-                key={c}
-                href={`/category/${encodeURIComponent(c.toLowerCase().replace(/\s+/g, '-'))}`}
-                className="card p-4 text-center hover:border-emerald-500 transition-colors"
-              >
-                {c}
-              </Link>
-            ))}
-          </div>
-        </section>
+        {categories.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">জনপ্রিয় ক্যাটাগরি</h2>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              {categories.slice(0, 10).map((c) => (
+                <Link
+                  key={c.slug}
+                  href={`/category/${c.slug}`}
+                  className="card p-4 text-center hover:border-emerald-500 transition-colors"
+                >
+                  {c.name}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Trending */}
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">ট্রেন্ডিং প্রোডাক্ট</h2>
-          <div className="grid md:grid-cols-3 gap-4">
-            {trending.map((p) => (
-              <Link key={p.id} href={`/product/${p.slug}`} className="card p-4 hover:border-emerald-500 transition-colors flex gap-4 items-center">
-                {p.heroImage && (
-                  <div className="w-20 h-20 relative rounded-lg overflow-hidden flex-shrink-0 bg-white border">
-                    <Image src={p.heroImage} alt={p.name} fill className="object-contain p-1" />
+        {trending.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">ট্রেন্ডিং প্রোডাক্ট</h2>
+            <div className="grid md:grid-cols-3 gap-4">
+              {trending.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/product/${p.slug}`}
+                  className="card p-4 hover:border-emerald-500 transition-colors flex gap-4 items-center"
+                >
+                  {p.heroImage && (
+                    <div className="w-20 h-20 relative rounded-lg overflow-hidden flex-shrink-0 bg-white border">
+                      <Image src={p.heroImage} alt={p.name} fill className="object-contain p-1" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="font-semibold">{p.name}</div>
+                    <div className="text-sm text-slate-500">{p.brand}</div>
+                    <div className="mt-1 text-sm">⭐ {p.rating}/5</div>
                   </div>
-                )}
-                <div>
-                  <div className="font-semibold">{p.name}</div>
-                  <div className="text-sm text-slate-500">{p.brand}</div>
-                  <div className="mt-1 text-sm">⭐ {p.rating}/5</div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Deals */}
-        <section>
-          <h2 className="text-2xl font-semibold mb-4">সেরা ডিল</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {deals.map((d) => {
-              const product = products.find((p) => p.id === d.productId)!;
-              return (
-                <div key={product.id + d.storeName} className="card p-4 flex gap-4 items-center">
+        {deals.length > 0 && (
+          <section>
+            <h2 className="text-2xl font-semibold mb-4">সেরা ডিল</h2>
+            <div className="grid md:grid-cols-2 gap-4">
+              {deals.map(({ product, price }) => (
+                <Link
+                  key={product.id + price.storeName}
+                  href={`/product/${product.slug}`}
+                  className="card p-4 flex gap-4 items-center hover:border-emerald-500 transition-colors"
+                >
                   {product.heroImage && (
                     <div className="w-16 h-16 relative rounded-lg overflow-hidden flex-shrink-0 bg-white border">
                       <Image src={product.heroImage} alt={product.name} fill className="object-contain p-1" />
                     </div>
                   )}
                   <div>
-                    <div className="font-semibold">{product.name} @ {d.storeName}</div>
+                    <div className="font-semibold">{product.name} @ {price.storeName}</div>
                     <div>
-                      {formatBDT(d.currentPrice)}{' '}
-                      <span className="line-through text-sm text-slate-400">{formatBDT(d.originalPrice)}</span>
-                      <span className="ml-2 text-emerald-600 font-medium">-{d.discountPercent.toFixed(0)}%</span>
+                      {formatBDT(price.currentPrice)}{' '}
+                      <span className="line-through text-sm text-slate-400">{formatBDT(price.originalPrice)}</span>
+                      <span className="ml-2 text-emerald-600 font-medium">-{price.discountPercent.toFixed(0)}%</span>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Empty state */}
+        {allProducts.length === 0 && (
+          <div className="text-center py-16 text-slate-400">
+            <p className="text-lg">ডেটাবেসে এখনো কোনো প্রোডাক্ট নেই।</p>
+            <p className="text-sm mt-2">
+              <code className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">pnpm db:seed-supabase</code> চালান।
+            </p>
           </div>
-        </section>
+        )}
       </main>
     </>
   );

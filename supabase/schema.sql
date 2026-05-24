@@ -11,3 +11,18 @@ create table if not exists comments(id uuid primary key default gen_random_uuid(
 create table if not exists ratings(id uuid primary key default gen_random_uuid(), user_id uuid references users(id), product_id uuid references products(id), rating int check (rating between 1 and 5));
 create table if not exists favorites(id uuid primary key default gen_random_uuid(), user_id uuid references users(id), product_id uuid references products(id), created_at timestamptz default now());
 create table if not exists affiliate_links(id uuid primary key default gen_random_uuid(), product_id uuid references products(id), store_name text not null, affiliate_url text not null, commission_rate numeric(5,2));
+
+-- ─── Index (query speed) ──────────────────────────────────────────────────
+create index if not exists idx_products_slug        on products(slug);
+create index if not exists idx_products_category_id on products(category_id);
+create index if not exists idx_products_brand_id    on products(brand_id);
+create index if not exists idx_product_prices_product_id on product_prices(product_id);
+create index if not exists idx_price_history_product_id  on price_history(product_id);
+
+-- ─── Unique constraint ────────────────────────────────────────────────────
+alter table ai_reviews
+  add constraint if not exists uq_ai_reviews_product_language unique (product_id, language);
+
+-- ─── Unique ratings per user per product ─────────────────────────────────
+alter table ratings
+  add constraint if not exists uq_ratings_user_product unique (user_id, product_id);

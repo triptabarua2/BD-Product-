@@ -1,27 +1,38 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
-import { prices, products, formatBDT } from '@/lib/data';
+import { getProductBySlug, getProductPrices, getAllProductSlugs } from '@/lib/db';
+import { formatBDT } from '@/lib/data';
+import { AIReview } from '@/components/product/AIReview';
+
+export const dynamic = 'force-dynamic';
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  return products.map((p) => ({ slug: p.slug }));
+  const slugs = await getAllProductSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const p = products.find((x) => x.slug === slug);
+  const p = await getProductBySlug(slug);
   if (!p) return {};
 
-  const storePrices = prices.filter((x) => x.productId === p.id).sort((a, b) => a.currentPrice - b.currentPrice);
-  const lowest = storePrices[0];
+  const prices = await getProductPrices(p.id);
+  const lowest = prices[0];
   const priceText = lowest ? ` – মাত্র ${formatBDT(lowest.currentPrice)}` : '';
 
   return {
     title: `${p.name} দাম ও রিভিউ বাংলাদেশ${priceText}`,
     description: `${p.name} এর AI রিভিউ, BDT দাম তুলনা ও স্পেসিফিকেশন। ${p.brand} | রেটিং: ${p.rating}/5`,
-    keywords: [`${p.name}`, `${p.name} দাম`, `${p.name} price in Bangladesh`, `${p.brand} ${p.category}`, 'BD product review'],
+    keywords: [
+      `${p.name}`,
+      `${p.name} দাম`,
+      `${p.name} price in Bangladesh`,
+      `${p.brand} ${p.category}`,
+      'BD product review',
+    ],
     alternates: { canonical: `https://bdproduct.com.bd/product/${slug}` },
     openGraph: {
       title: `${p.name} – দাম ও AI রিভিউ`,
@@ -34,11 +45,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductDetail({ params }: Props) {
   const { slug } = await params;
-  const p = products.find((x) => x.slug === slug);
+  const p = await getProductBySlug(slug);
   if (!p) return notFound();
 
-  const storePrices = prices.filter((x) => x.productId === p.id).sort((a, b) => a.currentPrice - b.currentPrice);
+  const storePrices = await getProductPrices(p.id);
   const lowest = storePrices[0];
+
+  // AIReview component-এ pass করার জন্য price summary
+  const priceSummary = storePrices.map((s) => ({
+    storeName: s.storeName,
+    currentPrice: s.currentPrice,
+  }));
 
   const productJsonLd = {
     '@context': 'https://schema.org',
@@ -47,13 +64,15 @@ export default async function ProductDetail({ params }: Props) {
     brand: { '@type': 'Brand', name: p.brand },
     description: `${p.name} – AI-powered bilingual review for Bangladeshi users.`,
     image: p.heroImage || undefined,
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: p.rating,
-      bestRating: 5,
-      worstRating: 1,
-      reviewCount: Math.floor(p.popularity * 2),
-    },
+    aggregateRating: p.rating
+      ? {
+          '@type': 'AggregateRating',
+          ratingValue: p.rating,
+          bestRating: 5,
+          worstRating: 1,
+          reviewCount: Math.max(1, Math.floor(p.rating * 20)),
+        }
+      : undefined,
     offers: lowest
       ? {
           '@type': 'Offer',
@@ -75,6 +94,8 @@ export default async function ProductDetail({ params }: Props) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
       <main className="container py-8 space-y-6">
+
+        {/* ── Hero section ─────────────────────────────────── */}
         <div className="flex flex-col md:flex-row gap-8 items-start">
           {p.heroImage && (
             <div className="w-full md:w-1/3 aspect-square relative rounded-2xl overflow-hidden border bg-white shadow-sm">
@@ -102,68 +123,96 @@ export default async function ProductDetail({ params }: Props) {
                 </div>
               )}
             </div>
+            {lowest && (
+              <a
+                href={lowest.affiliateUrl !== '#' ? lowest.affiliateUrl : lowest.storeUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2.5 rounded-xl font-semibold transition-colors"
+              >
+                {lowest.storeName}-এ কিনুন →
+              </a>
+            )}
           </div>
         </div>
 
+        {/* ── Main grid ─────────────────────────────────────── */}
         <div className="grid md:grid-cols-3 gap-6">
-          {/* AI Review */}
-          <section className="md:col-span-2 card p-6">
-            <h2 className="font-semibold text-xl">AI Review (English + বাংলা)</h2>
-            <p className="mt-3">
-              Excellent all-rounder for Bangladeshi users. এই প্রোডাক্টটি দৈনন্দিন ব্যবহার,
-              ক্যামেরা, এবং ব্যাটারি লাইফে ভালো পারফর্ম করে। Value score: 8.7/10.
-            </p>
-            <ul className="list-disc ml-6 mt-3 space-y-1">
-              <li>✅ Pros: Reliable performance, strong display, good resale.</li>
-              <li>❌ Cons: Charger speed could be faster.</li>
-            </ul>
-          </section>
 
-          {/* Price Summary */}
-          <aside className="card p-6 space-y-2">
-            <div className="text-lg font-bold text-emerald-600">
+          {/* AI Review – client component, auto-loads on mount */}
+          <div className="md:col-span-2">
+            <AIReview
+              productId={p.id}
+              productName={p.name}
+              specs={p.specs}
+              prices={priceSummary}
+            />
+          </div>
+
+          {/* Price sidebar */}
+          <aside className="card p-6 space-y-3 h-fit">
+            <p className="text-sm text-slate-500 font-medium">সর্বনিম্ন দাম</p>
+            <div className="text-2xl font-bold text-emerald-600">
               {lowest ? formatBDT(lowest.currentPrice) : 'N/A'}
             </div>
-            <div className="text-sm text-slate-500">সর্বনিম্ন দাম</div>
-            <div className="text-sm">Best for: Students, office users</div>
-            <div className="text-xs text-slate-400">
-              আপডেট: {new Date().toLocaleString('bn-BD')}
-            </div>
+            {lowest && lowest.originalPrice > lowest.currentPrice && (
+              <p className="text-sm text-slate-400 line-through">
+                {formatBDT(lowest.originalPrice)}
+              </p>
+            )}
+            <p className="text-xs text-slate-400">
+              আপডেট: {lowest ? new Date(lowest.lastUpdated).toLocaleDateString('bn-BD') : '–'}
+            </p>
           </aside>
         </div>
 
-        {/* Specs */}
+        {/* ── Specs ─────────────────────────────────────────── */}
         {Object.keys(p.specs).length > 0 && (
           <section className="card p-6">
-            <h3 className="font-semibold mb-3">স্পেসিফিকেশন</h3>
-            <dl className="grid grid-cols-2 gap-2">
+            <h3 className="font-semibold mb-4">স্পেসিফিকেশন</h3>
+            <dl className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {Object.entries(p.specs).map(([k, v]) => (
-                <div key={k} className="border-b pb-1">
+                <div key={k} className="border-b pb-2">
                   <dt className="text-xs text-slate-500">{k}</dt>
-                  <dd className="font-medium">{v}</dd>
+                  <dd className="font-medium text-sm">{v}</dd>
                 </div>
               ))}
             </dl>
           </section>
         )}
 
-        {/* Price Comparison */}
-        <section className="card p-6">
-          <h3 className="font-semibold mb-3">বাংলাদেশের স্টোরে দাম তুলনা</h3>
-          <div className="space-y-2">
-            {storePrices.map((s) => (
-              <div key={s.storeName} className="flex justify-between border-b pb-2">
-                <span>
-                  {s.storeName}{' '}
-                  <span className={`text-xs px-2 py-0.5 rounded-full ${s.availability === 'in_stock' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
-                    {s.availability === 'in_stock' ? 'আছে' : 'নেই'}
+        {/* ── Price comparison ───────────────────────────────── */}
+        {storePrices.length > 0 && (
+          <section className="card p-6">
+            <h3 className="font-semibold mb-4">বাংলাদেশের স্টোরে দাম তুলনা</h3>
+            <div className="space-y-2">
+              {storePrices.map((s) => (
+                <div key={s.storeName} className="flex justify-between items-center border-b pb-2 last:border-0">
+                  <span className="flex items-center gap-2">
+                    <a
+                      href={s.affiliateUrl !== '#' ? s.affiliateUrl : s.storeUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-emerald-600 transition-colors font-medium"
+                    >
+                      {s.storeName}
+                    </a>
+                    <span
+                      className={`text-xs px-2 py-0.5 rounded-full ${
+                        s.availability === 'in_stock'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : 'bg-red-100 text-red-700'
+                      }`}
+                    >
+                      {s.availability === 'in_stock' ? 'আছে' : 'নেই'}
+                    </span>
                   </span>
-                </span>
-                <span className="font-semibold">{formatBDT(s.currentPrice)}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+                  <span className="font-semibold">{formatBDT(s.currentPrice)}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       </main>
     </>
   );

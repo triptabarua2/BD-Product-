@@ -1,3 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { products } from '@/lib/data';
-export function GET(req:NextRequest){const q=req.nextUrl.searchParams.get('q')?.toLowerCase()||'';const suggestions=products.filter(p=>p.name.toLowerCase().includes(q)||p.brand.toLowerCase().includes(q)||p.category.toLowerCase().includes(q)).slice(0,8);return NextResponse.json(suggestions);}
+import { supabase } from '@/lib/supabase';
+
+export async function GET(req: NextRequest) {
+  const q = req.nextUrl.searchParams.get('q')?.trim() ?? '';
+  if (!q) return NextResponse.json([]);
+
+  const { data, error } = await supabase
+    .from('products')
+    .select(`
+      id, slug, name, rating,
+      brands(name),
+      categories(name)
+    `)
+    .ilike('name', `%${q}%`)
+    .limit(8);
+
+  if (error) {
+    console.error('[api/search] error:', error.message);
+    return NextResponse.json([]);
+  }
+
+  // UI-friendly format
+  const suggestions = (data ?? []).map((p: any) => ({
+    id: p.id,
+    slug: p.slug,
+    name: p.name,
+    brand: p.brands?.name ?? '',
+    category: p.categories?.name ?? '',
+    rating: p.rating,
+  }));
+
+  return NextResponse.json(suggestions);
+}
