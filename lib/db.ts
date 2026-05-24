@@ -88,7 +88,7 @@ export async function getAllProducts(): Promise<Product[]> {
     console.error('[db] getAllProducts error:', error.message);
     return [];
   }
-  return (data as DbProduct[]).map(mapProduct);
+  return ((data as unknown as DbProduct[]) ?? []).map(mapProduct);
 }
 
 /** slug দিয়ে একটি প্রোডাক্ট খোঁজা */
@@ -100,7 +100,7 @@ export async function getProductBySlug(slug: string): Promise<Product | null> {
     .maybeSingle();
 
   if (error || !data) return null;
-  return mapProduct(data as DbProduct);
+  return mapProduct(data as unknown as DbProduct);
 }
 
 /** একটি প্রোডাক্টের দামের তালিকা */
@@ -115,7 +115,7 @@ export async function getProductPrices(productId: string): Promise<ProductPrice[
     console.error('[db] getProductPrices error:', error.message);
     return [];
   }
-  return (data as DbPrice[]).map((p) => mapPrice(p, productId));
+  return ((data as unknown as DbPrice[]) ?? []).map((p) => mapPrice(p, productId));
 }
 
 /** ক্যাটাগরির slug দিয়ে প্রোডাক্ট তালিকা */
@@ -132,14 +132,14 @@ export async function getProductsByCategory(categorySlug: string): Promise<Produ
   const { data, error } = await supabase
     .from('products')
     .select(PRODUCT_SELECT)
-    .eq('category_id', cat.id)
+    .eq('category_id', (cat as any).id)
     .order('rating', { ascending: false });
 
   if (error) {
     console.error('[db] getProductsByCategory error:', error.message);
     return [];
   }
-  return (data as DbProduct[]).map(mapProduct);
+  return ((data as unknown as DbProduct[]) ?? []).map(mapProduct);
 }
 
 /** সার্চ: নাম / ব্র্যান্ড / ক্যাটাগরিতে মেলে এমন প্রোডাক্ট */
@@ -158,7 +158,7 @@ export async function searchProducts(q: string): Promise<Product[]> {
     console.error('[db] searchProducts error:', error.message);
     return [];
   }
-  return (data as DbProduct[]).map(mapProduct);
+  return ((data as unknown as DbProduct[]) ?? []).map(mapProduct);
 }
 
 /** সব ক্যাটাগরির তালিকা */
@@ -172,14 +172,14 @@ export async function getAllCategories(): Promise<{ name: string; slug: string }
     console.error('[db] getAllCategories error:', error.message);
     return [];
   }
-  return data ?? [];
+  return (data as unknown as { name: string; slug: string }[]) ?? [];
 }
 
 /** সব প্রোডাক্টের slug (Static Params-এর জন্য) */
 export async function getAllProductSlugs(): Promise<string[]> {
   const { data, error } = await supabase.from('products').select('slug');
   if (error) return [];
-  return (data ?? []).map((r) => r.slug);
+  return ((data as unknown as { slug: string }[]) ?? []).map((r) => r.slug);
 }
 
 /** সর্বোচ্চ ছাড়ের ডিল — (product + price একসাথে) */
