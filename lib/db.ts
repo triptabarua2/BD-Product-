@@ -31,7 +31,7 @@ type DbProduct = {
   product_prices: DbPrice[];
 };
 
-// ─── Mappers ───────────────────────────────────────────────────────────────
+// ─── Mappers ────────────────────────────────────────────────────────────
 
 function mapProduct(raw: DbProduct): Product {
   const specs: Record<string, string> = {};
@@ -125,14 +125,14 @@ export async function getProductsByCategory(categorySlug: string): Promise<Produ
     .from('categories')
     .select('id')
     .eq('slug', categorySlug)
-    .maybeSingle();
+    .maybeSingle<{ id: string }>();
 
   if (catErr || !cat) return [];
 
   const { data, error } = await supabase
     .from('products')
     .select(PRODUCT_SELECT)
-    .eq('category_id', (cat as any).id)
+    .eq('category_id', cat.id)
     .order('rating', { ascending: false });
 
   if (error) {
